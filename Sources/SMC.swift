@@ -115,6 +115,8 @@ final class Sensors {
     private let cpuKeys: [String]
     private let gpuKeys: [String]
     let fanCount: Int
+    private var lastCPU: (average: Double, hottest: Double)?
+    private var lastGPUAverage: Double?
 
     // Sensor key names vary by chip, so they're found once by prefix rather
     // than hardcoded. On M1 and M2, Tp and Te are the performance and
@@ -137,19 +139,25 @@ final class Sensors {
         fanCount = Int(smc.read("FNum")?.bytes.first ?? 0)
     }
 
+    // When every sensor in a group is dropped at once, the last good reading is
+    // kept so the row and graph don't jump.
     func read() -> SensorReadings {
         let cpu = cpuKeys.compactMap(temperature)
         let gpu = gpuKeys.compactMap(temperature)
+        if let cpuAverage = average(cpu), let cpuHottest = cpu.max() { lastCPU = (cpuAverage, cpuHottest) }
+        if let gpuAverage = average(gpu) { lastGPUAverage = gpuAverage }
         let fans = (0..<fanCount).compactMap { index -> Fan? in
             guard let rpm = smc.float("F\(index)Ac"), let maxRPM = smc.float("F\(index)Mx") else { return nil }
             return Fan(rpm: rpm, maxRPM: maxRPM)
         }
-        return SensorReadings(cpuAverage: average(cpu), cpuHottest: cpu.max(), gpuAverage: average(gpu), fans: fans)
+        return SensorReadings(cpuAverage: lastCPU?.average, cpuHottest: lastCPU?.hottest, gpuAverage: lastGPUAverage, fans: fans)
     }
 
-    // Idle or powered-down sensors read 0.
+    // While the GPU is powered down its sensors read 0 or about 9 °C, and a
+    // working chip is never below room temperature, so anything under 20 °C is
+    // dropped.
     private func temperature(_ key: String) -> Double? {
-        guard let value = smc.float(key), value > 0, value < 150 else { return nil }
+        guard let value = smc.float(key), value >= 20, value < 150 else { return nil }
         return value
     }
 }
