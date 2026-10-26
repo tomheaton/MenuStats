@@ -1,5 +1,9 @@
 # MenuStats
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="MenuStats in the menu bar with its dropdown open, showing CPU, temperature and memory graphs" width="449">
+</p>
+
 A small macOS menu bar app showing CPU, memory, temperature and fan usage. It's plain AppKit with no dependencies and no Xcode project, and it uses about 1% CPU and 25 MB of memory.
 
 The menu bar shows a CPU graph, CPU usage, CPU temperature and memory used. The dropdown has:
